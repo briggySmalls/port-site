@@ -23,4 +23,4 @@ def main(username, password):
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(main())  # pylint: disable=no-value-for-parameter
