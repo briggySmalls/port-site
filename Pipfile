@@ -1,0 +1,15 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+sqlalchemy = "*"
+click = "*"
+pymysql = "*"
+wordpress-sqlalchemy = {git = "https://github.com/briggySmalls/wordpress-sqlalchemy.git", ref = "fix/tables-import"}
+
+[dev-packages]
+
+[requires]
+python_version = "3.6"
