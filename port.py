@@ -1,10 +1,13 @@
 """Tool to port original site to site under development"""
 
 import sys
+import pdb
+import logging
 
 import click
 
 import sql
+from sqlalchemy.sql.expression import func
 import wpalchemy.classes as wp
 
 
@@ -20,6 +23,7 @@ def split_authors(manager):
         wp.PostMeta.meta_value.like('%&%'))  # Has an ampersand in string
 
     # Process each multi-author
+    new_authors = []
     for entry in multi_authors:
         # Extract the authors from the entry
         author_names = entry.meta_value.split(' & ')
@@ -34,28 +38,68 @@ def split_authors(manager):
                     meta_key=entry.meta_key,  # Copy the key ('author')
                     meta_value=author_name)  # Use the separated name
                 new_author.post_id = entry.post_id  # Link to the same post
+                new_authors.append(new_author)
+
+    # Trim all whitespace
+    manager.session.query(wp.PostMeta).filter_by(
+        meta_key='author').update({
+            wp.PostMeta.meta_value: func.ltrim(func.rtrim(wp.PostMeta.meta_value))
+        },
+        synchronize_session='fetch')
 
     # Push the updates
-    manager.session.commit()
+    manager.session.add_all(new_authors)
+
+
+def convert_authors(manager):
+    # Add authors as terms, with associated posts
+    new_terms = []
+    current_term = None
+    for author in manager.session.query(wp.PostMeta).filter_by(
+            meta_key='author').order_by(wp.PostMeta.meta_value):
+        # Ensure we have a term for the current author
+        if current_term is None or current_term.name != author.meta_value:
+            logging.debug("New author: '%s'", author.meta_value)
+            if current_term is not None:
+                # Add the previously built term
+                new_terms.append(current_term)
+            # Create a new term for this new author
+            current_term = wp.Term(
+                name=author.meta_value,
+                slug=author.meta_value.lower().replace(' ', '-'),
+                term_group=0,
+                taxonomy='sd-author')
+            pdb.set_trace()
+
+        # Add the post for the current term
+        current_term.posts.append(author.post)
+
+        # Remove the author
+        manager.session.delete(author)
+
+    # Add new terms
+    manager.session.add_all(new_terms)
 
 
 @click.command()
 @click.option('-u', '--username', help="database username", required=True)
 @click.option('-p', '--password', help="database password", required=True)
 def main(username, password):
+    # Configure logging
+    logging.basicConfig(level=logging.DEBUG)
+
     # First get a session
     manager = sql.DbManager(
         username=username,
         password=password)
 
-    # Query terms for now
+    # Convert authors
     split_authors(manager)
+    convert_authors(manager)
+
+    # Commit changes
+    manager.session.commit()
 
 
 if __name__ == '__main__':
     sys.exit(main())  # pylint: disable=no-value-for-parameter
-
-
-def convert_authors(manager):
-    # First get all the old authors
-    authors = manager.session.query(wp.PostMeta).filter_by(meta_key='author')
