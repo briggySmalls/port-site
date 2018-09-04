@@ -8,7 +8,7 @@ import click
 
 import sql
 from sqlalchemy.sql.expression import func
-from sqlalchemy import and_
+from sqlalchemy import and_, or_, not_
 import wpalchemy.classes as wp
 
 
@@ -113,6 +113,34 @@ def convert_products(manager):
             {wp.Term.taxonomy: 'sd-product-cat'})
 
 
+def cleanup(manager):
+    # Remove unwanted posts
+    desired_post_types = [
+        'post',
+        'sd-event',
+        'sd-product',
+        'acf-field',
+        'acf-field-group',
+        'attachment',
+        'revision',
+        'page',
+        'nav_menu_item',
+    ]
+    manager.session.query(wp.Post).filter(
+        not_(or_(*[wp.Post.post_type == pt for pt in desired_post_types]))).delete(
+            synchronize_session='fetch')
+    # Remove unwanted terms
+    desired_taxonomies = [
+        'sd-author',
+        'category',
+        'sd-product-cat',
+        'nav_menu',
+        'post_format'
+    ]
+    # manager.session.query(wp.Term).filter(
+    #     not_(or_(*[wp.Term.taxonomy == pt for pt in desired_taxonomies]))).delete()
+
+
 @click.command()
 @click.option('-u', '--username', help="database username", required=True)
 @click.option('-p', '--password', help="database password", required=True)
@@ -131,6 +159,7 @@ def main(username, password):
     convert_products(manager)
 
     # Commit changes
+    cleanup(manager)
     manager.session.commit()
 
 
