@@ -109,7 +109,7 @@ def convert_products(manager):
 
     # Update product category
     manager.session.query(wp.Term).filter_by(
-        taxonomy='product_cat').update(
+        taxonomy='it_exchange_category').update(
             {wp.Term.taxonomy: 'sd-product-cat'})
 
 
