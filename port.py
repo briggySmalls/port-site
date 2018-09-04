@@ -52,6 +52,8 @@ def split_authors(manager):
 
 
 def convert_authors(manager):
+    # First split up any dual-authored values
+    split_authors(manager)
     # Add authors as terms, with associated posts
     new_terms = []
     current_term = None
@@ -122,7 +124,6 @@ def main(username, password):
         password=password)
 
     # Convert authors
-    split_authors(manager)
     convert_authors(manager)
     convert_events(manager)
     convert_products(manager)
