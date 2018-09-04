@@ -83,19 +83,21 @@ def convert_authors(manager):
 
 
 def convert_events(manager):
-    # Get all posts that have the 'events' category
-    condition = and_(
-        wp.Post.terms.any(taxonomy='category'),
-        wp.Post.terms.any(slug='events'))
-    event_posts = manager.session.query(wp.Post).filter(condition)
+    cat = manager.session.query(wp.Term).filter_by(slug='events').first()
+    if cat:
+        # Get all posts that have the 'events' category
+        condition = and_(
+            wp.Post.terms.any(taxonomy='category'),
+            wp.Post.terms.any(slug='events'))
+        event_posts = manager.session.query(wp.Post).filter(condition)
 
-    # Update the post type to 'sd-event'
-    event_posts.update(
-        {wp.Post.post_type: 'sd-event'},
-        synchronize_session='fetch')
+        # Update the post type to 'sd-event'
+        event_posts.update(
+            {wp.Post.post_type: 'sd-event'},
+            synchronize_session='fetch')
 
-    # Remove the category terms
-    manager.session.query(wp.Term).filter_by(slug='events').delete()
+        # Remove the category term
+        manager.session.delete(cat)
 
 
 def convert_products(manager):
