@@ -2,11 +2,13 @@
 
 import sys
 import logging
+import pdb
 
 import click
 
 import sql
 from sqlalchemy.sql.expression import func
+from sqlalchemy import and_
 import wpalchemy.classes as wp
 
 
@@ -78,6 +80,35 @@ def convert_authors(manager):
     manager.session.add_all(new_terms)
 
 
+def convert_events(manager):
+    # Get all posts that have the 'events' category
+    condition = and_(
+        wp.Post.terms.any(taxonomy='category'),
+        wp.Post.terms.any(slug='events'))
+    event_posts = manager.session.query(wp.Post).filter(condition)
+
+    # Update the post type to 'sd-event'
+    event_posts.update(
+        {wp.Post.post_type: 'sd-event'},
+        synchronize_session='fetch')
+
+    # Remove the category terms
+    manager.session.query(wp.Term).filter_by(slug='events').delete()
+
+
+def convert_products(manager):
+    # Update post type of products
+    manager.session.query(wp.Post).filter_by(
+        post_type='it_exchange_prod').update(
+            {wp.Post.post_type: 'sd-product'},
+            synchronize_session='fetch')
+
+    # Update product category
+    manager.session.query(wp.Term).filter_by(
+        taxonomy='product_cat').update(
+            {wp.Term.taxonomy: 'sd-product-cat'})
+
+
 @click.command()
 @click.option('-u', '--username', help="database username", required=True)
 @click.option('-p', '--password', help="database password", required=True)
@@ -93,6 +124,8 @@ def main(username, password):
     # Convert authors
     split_authors(manager)
     convert_authors(manager)
+    convert_events(manager)
+    convert_products(manager)
 
     # Commit changes
     manager.session.commit()
