@@ -1,7 +1,6 @@
 """Tool to port original site to site under development"""
 
 import sys
-import pdb
 import logging
 
 import click
@@ -20,7 +19,7 @@ def split_authors(manager):
     # Find all author fields with more than one author
     multi_authors = manager.session.query(wp.PostMeta).filter(
         wp.PostMeta.meta_key == 'author',
-        wp.PostMeta.meta_value.like('%&%'))  # Has an ampersand in string
+        wp.PostMeta.meta_value.contains('&'))  # Has an ampersand in string
 
     # Process each multi-author
     new_authors = []
@@ -42,10 +41,9 @@ def split_authors(manager):
 
     # Trim all whitespace
     manager.session.query(wp.PostMeta).filter_by(
-        meta_key='author').update({
-            wp.PostMeta.meta_value: func.ltrim(func.rtrim(wp.PostMeta.meta_value))
-        },
-        synchronize_session='fetch')
+        meta_key='author').update(
+            {wp.PostMeta.meta_value: func.ltrim(func.rtrim(wp.PostMeta.meta_value))},
+            synchronize_session='fetch')
 
     # Push the updates
     manager.session.add_all(new_authors)
@@ -69,7 +67,6 @@ def convert_authors(manager):
                 slug=author.meta_value.lower().replace(' ', '-'),
                 term_group=0,
                 taxonomy='sd-author')
-            pdb.set_trace()
 
         # Add the post for the current term
         current_term.posts.append(author.post)
