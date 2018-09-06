@@ -26,7 +26,7 @@ class AuthorsConverter(Converter):
                 # Create a new term for this new author
                 current_term = wp.Term(
                     name=author.meta_value,
-                    slug=author.meta_value.lower().replace(' ', '-'),
+                    slug=self.manager.kebabify(author.meta_value),
                     term_group=0,
                     taxonomy='sd-author')
 
@@ -35,6 +35,9 @@ class AuthorsConverter(Converter):
 
             # Remove the author
             self.session.delete(author)
+
+        # TODO: Set author count
+        # seems to be necessary for "choose from most used authors" option
 
         # Add new terms
         self.session.add_all(new_terms)

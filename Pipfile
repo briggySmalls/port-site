@@ -7,9 +7,11 @@ name = "pypi"
 sqlalchemy = "*"
 click = "*"
 pymysql = "*"
-wordpress-sqlalchemy = {git = "https://github.com/briggySmalls/wordpress-sqlalchemy.git", ref = "fix/tables-import"}
+"ecade51" = {path = "/Users/sambriggs/Code/misc/wordpress-sqlalchemy", editable = true}
+inflection = "*"
 
 [dev-packages]
+ipython = "*"
 
 [requires]
-python_version = "3.6"
+python_version = "3.7"

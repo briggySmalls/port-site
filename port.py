@@ -4,7 +4,7 @@ import sys
 import logging
 
 import click
-from sqlalchemy import or_, not_
+from sqlalchemy import or_, not_, exists
 import wpalchemy.classes as wp
 
 import sql
@@ -36,6 +36,7 @@ def cleanup(manager):
     manager.session.query(wp.Post).filter(
         not_(or_(*[wp.Post.post_type == pt for pt in desired_post_types]))).delete(
             synchronize_session='fetch')
+
     # Remove unwanted terms
     desired_taxonomies = [
         'sd-author',
@@ -44,8 +45,22 @@ def cleanup(manager):
         'nav_menu',
         'post_format'
     ]
-    manager.session.query(wp.Term).filter(
-        not_(or_(*[wp.Term.taxonomy == pt for pt in desired_taxonomies]))).delete()
+    sql_taxonomies = " OR ".join(["wp_term_taxonomy.taxonomy = '{}'".format(tax) for tax in desired_taxonomies])
+    manager.engine.execute(
+        "DELETE wp_terms, wp_term_taxonomy, wp_termmeta FROM wp_terms "
+        "INNER JOIN wp_term_taxonomy "
+        "ON wp_terms.term_id = wp_term_taxonomy.term_id "
+        "INNER JOIN wp_termmeta "
+        "ON wp_terms.term_id = wp_termmeta.term_id "
+        "WHERE NOT ({})".format(sql_taxonomies))
+
+    # Remove orphans
+    manager.session.query(wp.Post).filter(~exists().where(wp.Post.ID == wp.PostMeta.post_id)).delete(
+        synchronize_session='fetch')
+    # manager.session.query(wp.Term).filter(~exists().where(wp.Term.id == wp.TermMeta.term_id)).delete(
+    #     synchronize_session='fetch')
+    manager.session.query(wp.User).filter(~exists().where(wp.User.ID == wp.UserMeta.user_id)).delete(
+        synchronize_session='fetch')
 
 
 @click.command()
@@ -67,6 +82,8 @@ def main(username, password):
     factory.create('AuthorsConverter').convert()
     factory.create('EventsConverter').convert()
     factory.create('ProductsConverter').convert()
+    factory.create('MenuConverter').convert()
+    factory.create('PagesConverter').convert()
 
     # Commit changes
     cleanup(manager)
