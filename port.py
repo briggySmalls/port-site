@@ -2,7 +2,6 @@
 from sqlalchemy import or_, not_, exists
 import wpalchemy.classes as wp
 
-import sql
 import converters
 
 
