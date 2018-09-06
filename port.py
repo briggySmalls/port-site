@@ -1,9 +1,4 @@
 """Tool to port original site to site under development"""
-
-import sys
-import logging
-
-import click
 from sqlalchemy import or_, not_, exists
 import wpalchemy.classes as wp
 
@@ -18,6 +13,21 @@ class ConverterFactory:
     def create(self, converter):
         class_ = getattr(converters, converter)
         return class_(self.manager)
+
+def process(manager):
+    # Create a converter factory
+    factory = ConverterFactory(manager)
+
+    # Convert the database
+    factory.create('AuthorsConverter').convert()
+    factory.create('EventsConverter').convert()
+    factory.create('ProductsConverter').convert()
+    factory.create('MenuConverter').convert()
+    factory.create('PagesConverter').convert()
+
+    # Commit changes
+    cleanup(manager)
+    manager.session.commit()
 
 
 def cleanup(manager):
@@ -61,34 +71,3 @@ def cleanup(manager):
     #     synchronize_session='fetch')
     manager.session.query(wp.User).filter(~exists().where(wp.User.ID == wp.UserMeta.user_id)).delete(
         synchronize_session='fetch')
-
-
-@click.command()
-@click.option('-u', '--username', help="database username", required=True)
-@click.option('-p', '--password', help="database password", required=True)
-def main(username, password):
-    # Configure logging
-    logging.basicConfig(level=logging.DEBUG)
-
-    # First get a session
-    manager = sql.DbManager(
-        username=username,
-        password=password)
-
-    # Create a converter factory
-    factory = ConverterFactory(manager)
-
-    # Convert the database
-    factory.create('AuthorsConverter').convert()
-    factory.create('EventsConverter').convert()
-    factory.create('ProductsConverter').convert()
-    factory.create('MenuConverter').convert()
-    factory.create('PagesConverter').convert()
-
-    # Commit changes
-    cleanup(manager)
-    manager.session.commit()
-
-
-if __name__ == '__main__':
-    sys.exit(main())  # pylint: disable=no-value-for-parameter
