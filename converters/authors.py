@@ -1,7 +1,8 @@
 import logging
 
 import wpalchemy.classes as wp
-from sqlalchemy.sql.expression import func
+from sqlalchemy import func
+from sqlalchemy.sql import collate
 
 from converters.converter import Converter
 
@@ -13,34 +14,54 @@ class AuthorsConverter(Converter):
     def convert(self):
         # First split up any dual-authored values
         self._split_authors()
-        # Add authors as terms, with associated posts
-        new_terms = []
-        current_term = None
-        for author in self.source.session.query(wp.PostMeta).filter_by(
-                meta_key='author').order_by(wp.PostMeta.meta_value):
-            # Ensure we have a term for the current author
-            if current_term is None or current_term.name != author.meta_value:
-                if current_term is not None:
-                    # Add the previously built term
-                    new_terms.append(current_term)
-                # Create a new term for this new author
-                current_term = wp.Term(
-                    name=author.meta_value,
-                    slug=self.source.kebabify(author.meta_value),
-                    term_group=0,
-                    taxonomy='sd-author')
 
+        # Create an author for each unique author name
+        # Note: We 'collate' to not group accented chars with non-accented
+        unique_authors = self.source.session.query(
+            wp.PostMeta.meta_value,
+            func.count(wp.PostMeta.meta_id)).group_by(
+                collate(wp.PostMeta.meta_value, "utf8_bin")).filter_by(
+                    meta_key='author').order_by(
+                        collate(wp.PostMeta.meta_value, "utf8_bin"))
+        new_authors = []
+        for name, count in unique_authors:
+            # Create a new term for this new author
+            new_authors.append(wp.Term(
+                name=name,
+                slug=self.source.kebabify(name),
+                term_group=0,
+                count=count,
+                taxonomy='sd-author'))
+
+        # Summarise authors found
+        logger.debug(
+            "Found authors:\n- %s",
+            "\n- ".join([a.name for a in new_authors]))
+
+        # Connect new authors to posts
+        current_term = None
+        assert new_authors
+        term_iterator = iter(new_authors)
+        for author in self.source.session.query(wp.PostMeta).filter_by(
+                meta_key='author').order_by(collate(wp.PostMeta.meta_value, "utf8_bin")):
+            # Fetch the new term for current author
+            if current_term is None or current_term.name != author.meta_value:
+                # Assuming order_by worked, we should just need the next term
+                current_term = next(term_iterator)
+            # Check we have the matching term
+            logger.debug(
+                "Term %s vs postmeta %s (id %d)",
+                current_term.name,
+                author.meta_value,
+                author.meta_id)
+            assert current_term.name == author.meta_value
             # Add the post for the current term
             current_term.posts.append(author.post)
-
             # Remove the author
             self.source.session.delete(author)
 
-        # TODO: Set author count
-        # seems to be necessary for "choose from most used authors" option
-
         # Add new terms
-        self.source.session.add_all(new_terms)
+        self.source.session.add_all(new_authors)
 
     def _split_authors(self):
         """Finds all posts with multiple authors and splits them out

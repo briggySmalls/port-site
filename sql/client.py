@@ -1,7 +1,6 @@
 """ORM for SQL connection"""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-import inflection
 import logging
 
 import wpalchemy.classes as wp
@@ -44,7 +43,7 @@ class SqlClient:
 
     @staticmethod
     def kebabify(string):
-        return inflection.dasherize(inflection.underscore(string))
+        return string.replace(' ', '-').lower()
 
     def create_post(self, **kwargs):
         # Create the post (with handy defaults set)

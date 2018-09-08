@@ -54,11 +54,14 @@ def main(backup, database, username, password, host, port):
     target_client = SqlClient(target_params, database)
 
     logging.info("Creating SQL docker container")
-    with SqlServer() as server:
-        try:
-            run(server, backup, target_client)
-        except Exception as exc:
-            logging.exception("Error during conversion")
+
+    server = SqlServer()
+    server._start_container()
+    server._wait_till_initialised()
+    try:
+        run(server, backup, target_client)
+    except Exception as exc:
+        logging.exception("Error during conversion")
 
 
 if __name__ == '__main__':

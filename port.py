@@ -76,7 +76,7 @@ def cleanup(manager):
 
 def copy(source, target):
     # Ensure any pending session changes are flushed to tables
-    source.session.flush()
+    source.session.commit()
     # Identify tables of interest
     desired_tables = [
         tables.posts,
@@ -91,5 +91,4 @@ def copy(source, target):
         target.engine.execute(table.delete())
         # Copy the source's contents to the target
         for row in source.engine.execute(table.select()):
-            target.session.execute(table.insert(row))
-        target.session.commit()
+            target.engine.execute(table.insert(row))

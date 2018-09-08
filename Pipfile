@@ -8,7 +8,6 @@ sqlalchemy = "*"
 click = "*"
 pymysql = "*"
 "ecade51" = {path = "/Users/sambriggs/Code/misc/wordpress-sqlalchemy", editable = true}
-inflection = "*"
 docker = "*"
 
 [dev-packages]
