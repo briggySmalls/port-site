@@ -1,21 +1,24 @@
 """Tool to port original site to site under development"""
 from sqlalchemy import or_, not_, exists
 import wpalchemy.classes as wp
+import wpalchemy.tables as tables
 
 import converters
 
 
 class ConverterFactory:
-    def __init__(self, manager):
-        self.manager = manager
+    def __init__(self, source, target):
+        self.source = source
+        self.target = target
 
     def create(self, converter):
         class_ = getattr(converters, converter)
-        return class_(self.manager)
+        return class_(self.source, self.target)
 
-def process(manager):
+
+def process(source, target):
     # Create a converter factory
-    factory = ConverterFactory(manager)
+    factory = ConverterFactory(source, target)
 
     # Convert the database
     factory.create('AuthorsConverter').convert()
@@ -24,19 +27,18 @@ def process(manager):
     factory.create('MenuConverter').convert()
     factory.create('PagesConverter').convert()
 
-    # Commit changes
-    cleanup(manager)
-    manager.session.commit()
+    cleanup(source)
+    copy(source, target)
 
 
 def cleanup(manager):
+    # Ensure things are flushed
+    manager.session.flush()
     # Remove unwanted posts
     desired_post_types = [
         'post',
         'sd-event',
         'sd-product',
-        'acf-field',
-        'acf-field-group',
         'attachment',
         'revision',
         'page',
@@ -70,3 +72,24 @@ def cleanup(manager):
     #     synchronize_session='fetch')
     manager.session.query(wp.User).filter(~exists().where(wp.User.ID == wp.UserMeta.user_id)).delete(
         synchronize_session='fetch')
+
+
+def copy(source, target):
+    # Ensure any pending session changes are flushed to tables
+    source.session.flush()
+    # Identify tables of interest
+    desired_tables = [
+        tables.posts,
+        tables.postmeta,
+        tables.terms,
+        tables.termmeta,
+        tables.term_taxonomies,
+        tables.term_relationships,
+    ]
+    for table in desired_tables:
+        # Clear the target's current contents
+        target.engine.execute(table.delete())
+        # Copy the source's contents to the target
+        for row in source.engine.execute(table.select()):
+            target.session.execute(table.insert(row))
+        target.session.commit()

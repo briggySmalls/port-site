@@ -67,33 +67,33 @@ class MenuItem:
 class MenuConverter(Converter):
     def convert(self):
         # Delete all nav menu posts (we are replacing them completely)
-        self.session.query(wp.Post).filter_by(
+        self.source.session.query(wp.Post).filter_by(
             post_type='nav_menu_item').delete()
 
         # Get about page
-        about_page = self.session.query(wp.Post).filter_by(
+        about_page = self.source.session.query(wp.Post).filter_by(
             post_type='page',
             post_name='about-us',
             post_status='publish').one()
 
         # Create the new menu items
         MenuItem(
-            manager=self.manager,
+            manager=self.source,
             title="About",
             order=1,
             meta_args=PageMenuItemMetaArgs(object_id=about_page.ID))
         MenuItem(
-            manager=self.manager,
+            manager=self.source,
             title="Articles",
             order=2,
             meta_args=CustomMenuItemMetaArgs(url="/articles"))
         MenuItem(
-            manager=self.manager,
+            manager=self.source,
             title="Events",
             order=3,
             meta_args=CustomMenuItemMetaArgs(url="/events"))
         MenuItem(
-            manager=self.manager,
+            manager=self.source,
             title="Shop",
             order=4,
             meta_args=CustomMenuItemMetaArgs(url="/shop"))

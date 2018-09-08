@@ -94,6 +94,15 @@ class SqlServer:
                 self.db_params.password,
                 database))
 
+    def dump(self, filename, database, tables):
+        self.container.exec_run(
+            "mysqldump -u{} -p{} {} {} > {}".format(
+                self.db_params.username,
+                self.db_params.password,
+                database,
+                " ".join(tables),
+                filename))
+
     def execute(self, command):
         exit_code, output = self.container.exec_run(command)
         if exit_code != 0:

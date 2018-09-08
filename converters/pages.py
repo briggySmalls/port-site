@@ -28,19 +28,19 @@ class PagesConverter(Converter):
     def convert(self):
         # Create home page
         home_page = Page(
-            self.manager,
+            self.source,
             title="Home",
             template="views/widget-page.blade.php")
         # Update the home page setting
         # TODO: Options aren't copied. This needs to be on target DB!
-        self.session.query(wp.Option).filter_by(
+        self.target.session.query(wp.Option).filter_by(
             option_name="page_on_front").update(
                 {wp.Option.option_value: home_page.object.ID})
 
         # Create articles page
-        articles_page = Page(self.manager, title="Articles")
+        articles_page = Page(self.source, title="Articles")
         # Update the articles page setting
         # TODO: Options aren't copied. This needs to be on target DB!
-        self.session.query(wp.Option).filter_by(
+        self.target.session.query(wp.Option).filter_by(
             option_name="page_for_posts").update(
                 {wp.Option.option_value: articles_page.object.ID})

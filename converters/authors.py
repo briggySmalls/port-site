@@ -16,7 +16,7 @@ class AuthorsConverter(Converter):
         # Add authors as terms, with associated posts
         new_terms = []
         current_term = None
-        for author in self.session.query(wp.PostMeta).filter_by(
+        for author in self.source.session.query(wp.PostMeta).filter_by(
                 meta_key='author').order_by(wp.PostMeta.meta_value):
             # Ensure we have a term for the current author
             if current_term is None or current_term.name != author.meta_value:
@@ -26,7 +26,7 @@ class AuthorsConverter(Converter):
                 # Create a new term for this new author
                 current_term = wp.Term(
                     name=author.meta_value,
-                    slug=self.manager.kebabify(author.meta_value),
+                    slug=self.source.kebabify(author.meta_value),
                     term_group=0,
                     taxonomy='sd-author')
 
@@ -34,13 +34,13 @@ class AuthorsConverter(Converter):
             current_term.posts.append(author.post)
 
             # Remove the author
-            self.session.delete(author)
+            self.source.session.delete(author)
 
         # TODO: Set author count
         # seems to be necessary for "choose from most used authors" option
 
         # Add new terms
-        self.session.add_all(new_terms)
+        self.source.session.add_all(new_terms)
 
     def _split_authors(self):
         """Finds all posts with multiple authors and splits them out
@@ -49,7 +49,7 @@ class AuthorsConverter(Converter):
             manager (DbManager): Manager for the SQL connection
         """
         # Find all author fields with more than one author
-        multi_authors = self.session.query(wp.PostMeta).filter(
+        multi_authors = self.source.session.query(wp.PostMeta).filter(
             wp.PostMeta.meta_key == 'author',
             wp.PostMeta.meta_value.contains('&'))  # Has an ampersand in string
 
@@ -72,10 +72,10 @@ class AuthorsConverter(Converter):
                     new_authors.append(new_author)
 
         # Trim all whitespace
-        self.session.query(wp.PostMeta).filter_by(
+        self.source.session.query(wp.PostMeta).filter_by(
             meta_key='author').update(
                 {wp.PostMeta.meta_value: func.ltrim(func.rtrim(wp.PostMeta.meta_value))},
                 synchronize_session='fetch')
 
         # Push the updates
-        self.session.add_all(new_authors)
+        self.source.session.add_all(new_authors)
