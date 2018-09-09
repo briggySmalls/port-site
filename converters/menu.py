@@ -53,7 +53,7 @@ class MenuItemMeta:
 class MenuItem:
     def __init__(self, manager, title: str, order: int, meta_args: MenuItemMetaArgs):
         # Create the menu Item
-        post = manager.create_post(
+        self._post = manager.create_post(
             post_title=title,
             post_type="nav_menu_item",
             post_content='',
@@ -61,7 +61,11 @@ class MenuItem:
             menu_order=order)
 
         # Create the meta data
-        MenuItemMeta(manager, post.ID, meta_args)
+        MenuItemMeta(manager, self._post.ID, meta_args)
+
+    @property
+    def post(self):
+        return self._post
 
 
 class MenuConverter(Converter):
@@ -69,6 +73,10 @@ class MenuConverter(Converter):
         # Delete all nav menu posts (we are replacing them completely)
         self.source.session.query(wp.Post).filter_by(
             post_type='nav_menu_item').delete()
+        # Delete all the nav menu term relationships
+        main_menu_term = self.source.session.query(wp.Term).filter_by(
+            slug='main-menu').one()
+        main_menu_term.posts = []
 
         # Get about page
         about_page = self.source.session.query(wp.Post).filter_by(
@@ -77,23 +85,29 @@ class MenuConverter(Converter):
             post_status='publish').one()
 
         # Create the new menu items
-        MenuItem(
-            manager=self.source,
-            title="About",
-            order=1,
-            meta_args=PageMenuItemMetaArgs(object_id=about_page.ID))
-        MenuItem(
-            manager=self.source,
-            title="Articles",
-            order=2,
-            meta_args=CustomMenuItemMetaArgs(url="/articles"))
-        MenuItem(
-            manager=self.source,
-            title="Events",
-            order=3,
-            meta_args=CustomMenuItemMetaArgs(url="/events"))
-        MenuItem(
-            manager=self.source,
-            title="Shop",
-            order=4,
-            meta_args=CustomMenuItemMetaArgs(url="/shop"))
+        items = [
+            MenuItem(
+                manager=self.source,
+                title="About",
+                order=1,
+                meta_args=PageMenuItemMetaArgs(object_id=about_page.ID)),
+            MenuItem(
+                manager=self.source,
+                title="Articles",
+                order=2,
+                meta_args=CustomMenuItemMetaArgs(url="/articles")),
+            MenuItem(
+                manager=self.source,
+                title="Events",
+                order=3,
+                meta_args=CustomMenuItemMetaArgs(url="/events")),
+            MenuItem(
+                manager=self.source,
+                title="Shop",
+                order=4,
+                meta_args=CustomMenuItemMetaArgs(url="/products")),
+        ]
+
+        # Associate the posts with the main menu term
+        for item in items:
+            item.post.terms.append(main_menu_term)

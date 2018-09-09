@@ -77,6 +77,7 @@ def cleanup(manager):
 def copy(source, target):
     # Ensure any pending session changes are flushed to tables
     source.session.commit()
+    target.session.commit()
     # Identify tables of interest
     desired_tables = [
         tables.posts,
