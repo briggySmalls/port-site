@@ -17,6 +17,9 @@ class ConverterFactory:
 
 
 def process(source, target):
+    # Initial sanitisation
+    cleanup_orphans(source)
+
     # Create a converter factory
     factory = ConverterFactory(source, target)
 
@@ -26,14 +29,35 @@ def process(source, target):
     factory.create('ProductsConverter').convert()
     factory.create('MenuConverter').convert()
     factory.create('PagesConverter').convert()
+    factory.create('CategoriesConverter').convert()
 
     cleanup(source)
     copy(source, target)
 
 
+def cleanup_orphans(source):
+    # Remove orphaned meta rows
+    source.session.query(wp.PostMeta).filter(
+        wp.PostMeta.post_id.notin_(source.session.query(wp.Post.ID))).delete(
+            synchronize_session='fetch')
+    source.session.query(wp.TermMeta).filter(
+        wp.TermMeta.term_id.notin_(source.session.query(
+            wp.Term.id))).delete(
+                synchronize_session='fetch')
+    source.session.query(wp.UserMeta).filter(
+        wp.UserMeta.user_id.notin_(source.session.query(wp.User.ID))).delete(
+            synchronize_session='fetch')
+
+    # Remove orphaned term relationships
+    source.session.query(tables.term_relationships).filter(
+        tables.term_relationships.c.object_id.notin_(
+            source.session.query(wp.Post.ID))).delete(
+                synchronize_session='fetch')
+
+
 def cleanup(manager):
-    # Ensure things are flushed
-    manager.session.flush()
+    # Ensure things are committed
+    manager.session.commit()
     # Remove unwanted posts
     desired_post_types = [
         'post',
@@ -65,13 +89,7 @@ def cleanup(manager):
         "ON wp_terms.term_id = wp_termmeta.term_id "
         "WHERE NOT ({})".format(sql_taxonomies))
 
-    # Remove orphans
-    manager.session.query(wp.Post).filter(~exists().where(wp.Post.ID == wp.PostMeta.post_id)).delete(
-        synchronize_session='fetch')
-    # manager.session.query(wp.Term).filter(~exists().where(wp.Term.id == wp.TermMeta.term_id)).delete(
-    #     synchronize_session='fetch')
-    manager.session.query(wp.User).filter(~exists().where(wp.User.ID == wp.UserMeta.user_id)).delete(
-        synchronize_session='fetch')
+    # cleanup_orphans(manager)
 
 
 def copy(source, target):
