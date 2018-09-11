@@ -5,3 +5,4 @@ from converters.events import EventsConverter
 from converters.products import ProductsConverter
 from converters.menu import MenuConverter
 from converters.pages import PagesConverter
+from converters.categories import CategoriesConverter
