@@ -1,0 +1,68 @@
+"""Helper functions for manipulating wordpress classes"""
+from typing import Sequence, Callable, Any
+
+from sqlalchemy.orm.session import Session
+import wpalchemy.classes as wp
+
+
+def get_element(sequence: Sequence, test: Callable[[Sequence], Any]):
+    """Return the element in a sequence that passes the test
+
+    Args:
+        sequence (Sequence): Sequence to search
+        test (Callable[[Sequence], Any]): Test to apply to elements
+
+    Returns:
+        Any: The first element of the sequence that passes the test
+    """
+    for item in sequence:
+        if test(item):
+            return item
+
+    raise RuntimeError("No element found")
+
+
+def get_meta(obj: wp.Base, key: str) -> str:
+    """Return the value of the specified meta data
+
+    Args:
+        obj (Base): SQLAlchemy mapper class
+        key (str): Meta key to identify the object with
+
+    Returns:
+        str: The meta_value for the matching meta data
+    """
+    return get_element(obj.meta, lambda x: x.meta_key == key).meta_value
+
+
+def create_post_meta(session: Session, post_id: int, data: dict):
+    create_meta(session, wp.PostMeta, 'post_id', post_id, data)
+
+
+def create_meta(session: Session, class_type, id_column: str, id: int, data: dict):
+    for key, value in data.items():
+        # Create the post meta object
+        session.add(class_type(
+            **{id_column: id},
+            meta_key=key,
+            meta_value=value))
+
+
+class Page:
+    def __init__(self, manager, title, template=None):
+        # Create the page
+        self._page = manager.create_post(
+            post_type="page",
+            post_content='',
+            post_excerpt='',
+            post_title=title)
+        # Set the template (if necessary)
+        if template:
+            manager.session.add(wp.PostMeta(
+                post_id=self._page.ID,
+                meta_key="_wp_page_template",
+                meta_value=template))
+
+    @property
+    def object(self):
+        return self._page

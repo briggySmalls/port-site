@@ -5,6 +5,7 @@ from dataclasses import dataclass, asdict
 import wpalchemy.classes as wp
 
 from converters.converter import Converter
+from converters.helpers import create_post_meta
 
 
 @dataclass
@@ -42,12 +43,12 @@ class MenuItemMeta:
         # Give the args a chance to update based on post_id
         meta_args.update(post_id)
         # Create a post meta for every arg
-        for key, value in asdict(meta_args).items():
-            # Create the post meta object
-            manager.session.add(wp.PostMeta(
-                post_id=post_id,
-                meta_key="_menu_item_{}".format(key),
-                meta_value=value))
+        data = {
+            "_menu_item_{}".format(key): value for
+            key, value in
+            asdict(meta_args).items()
+        }
+        create_post_meta(manager.session, post_id, data)
 
 
 class MenuItem:

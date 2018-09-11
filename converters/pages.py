@@ -2,26 +2,7 @@
 import wpalchemy.classes as wp
 
 from converters.converter import Converter
-
-
-class Page:
-    def __init__(self, manager, title, template=None):
-        # Create the page
-        self._page = manager.create_post(
-            post_type="page",
-            post_content='',
-            post_excerpt='',
-            post_title=title)
-        # Set the template (if necessary)
-        if template:
-            manager.session.add(wp.PostMeta(
-                post_id=self._page.ID,
-                meta_key="_wp_page_template",
-                meta_value=template))
-
-    @property
-    def object(self):
-        return self._page
+from converters.helpers import Page
 
 
 class PagesConverter(Converter):
