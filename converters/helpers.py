@@ -89,3 +89,22 @@ def create_post(manager, **kwargs):
     # Update the guid with the post ID
     post.guid = "http://skindeepmag.com/?p={}".format(post.ID)
     return post
+
+
+def create_acf_meta(manager, class_ref, object_id, value, acf_name, acf_key):
+    # Determine class-dependent keyword arguments
+    if class_ref == wp.PostMeta:
+        kwargs = {'post_id': object_id}
+    else:
+        kwargs = {'term_id': object_id}
+
+    # Add image metadata
+    manager.session.add(class_ref(
+        meta_key=acf_name,
+        meta_value=value,
+        **kwargs))
+    # Add the ACF metadata
+    manager.session.add(class_ref(
+        meta_key="_{}".format(acf_name),
+        meta_value=acf_key,
+        **kwargs))
