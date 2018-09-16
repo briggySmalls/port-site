@@ -38,20 +38,20 @@ def cleanup_orphans(source):
     # Remove orphaned meta rows
     source.session.query(wp.PostMeta).filter(
         wp.PostMeta.post_id.notin_(source.session.query(wp.Post.ID))).delete(
-            synchronize_session='fetch')
+            synchronize_session=False)
     source.session.query(wp.TermMeta).filter(
         wp.TermMeta.term_id.notin_(source.session.query(
             wp.Term.id))).delete(
-                synchronize_session='fetch')
+                synchronize_session=False)
     source.session.query(wp.UserMeta).filter(
         wp.UserMeta.user_id.notin_(source.session.query(wp.User.ID))).delete(
-            synchronize_session='fetch')
+            synchronize_session=False)
 
     # Remove orphaned term relationships
     source.session.query(tables.term_relationships).filter(
         tables.term_relationships.c.object_id.notin_(
             source.session.query(wp.Post.ID))).delete(
-                synchronize_session='fetch')
+                synchronize_session=False)
 
 
 def cleanup(manager):
