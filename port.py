@@ -1,5 +1,5 @@
 """Tool to port original site to site under development"""
-from sqlalchemy import or_, not_, exists
+from sqlalchemy import or_, not_
 import wpalchemy.classes as wp
 import wpalchemy.tables as tables
 
@@ -88,16 +88,32 @@ def cleanup(manager):
         "ON wp_terms.term_id = wp_termmeta.term_id "
         "WHERE NOT ({})".format(sql_taxonomies))
 
-    # cleanup_orphans(manager)
+    cleanup_orphans(manager)
 
 
 def copy(source, target):
+    def get_columns(obj: wp.Base):
+        return {
+            column.key: getattr(obj, column.key) for column in obj.__table__.columns
+        }
+
     # Ensure any pending session changes are flushed to tables
     source.session.commit()
     target.session.commit()
+
+    # Copy relevant posts
+    desired_post_types = [
+        "attachment", "post"
+    ]
+    post_types_filter = or_(
+        *[wp.Post.post_type == post_type for post_type in desired_post_types])
+    target.session.query(wp.Post).filter(post_types_filter).delete()
+    relevant_posts = source.session.query(wp.Post).filter(post_types_filter)
+    target.session.bulk_insert_mappings(
+        wp.Post, (get_columns(post) for post in relevant_posts))
+
     # Identify tables of interest
     desired_tables = [
-        tables.posts,
         tables.postmeta,
         tables.terms,
         tables.termmeta,
