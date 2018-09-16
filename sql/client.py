@@ -40,24 +40,3 @@ class SqlClient:
     @property
     def database(self):
         return self._database
-
-    @staticmethod
-    def kebabify(string):
-        return string.replace(' ', '-').lower()
-
-    def create_post(self, **kwargs):
-        # Create the post (with handy defaults set)
-        print(kwargs)
-        post = wp.Post(
-            **kwargs,
-            post_name=self.kebabify(kwargs['post_title']),
-            guid='',
-            post_mime_type='',
-            comment_status="closed",
-            ping_status="closed")
-        self.session.add(post)
-        # Flush the post to get populate the ID
-        self.session.flush()
-        # Update the guid with the post ID
-        post.guid = "http://skindeepmag.com/?p={}".format(post.ID)
-        return post

@@ -3,6 +3,7 @@ from typing import Sequence, Callable, Any
 
 from sqlalchemy.orm.session import Session
 import wpalchemy.classes as wp
+from slugify import slugify
 
 
 def get_element(sequence: Sequence, test: Callable[[Sequence], Any]):
@@ -51,7 +52,7 @@ def create_meta(session: Session, class_type, id_column: str, id: int, data: dic
 class Page:
     def __init__(self, manager, title, template=None):
         # Create the page
-        self._page = manager.create_post(
+        self._page = create_post(
             post_type="page",
             post_content='',
             post_excerpt='',
@@ -66,3 +67,24 @@ class Page:
     @property
     def object(self):
         return self._page
+
+
+def kebabify(string):
+    return slugify(string).replace(' ', '-').lower()
+
+
+def create_post(self, **kwargs):
+    # Create the post (with handy defaults set)
+    post = wp.Post(
+        **kwargs,
+        post_name=self.kebabify(kwargs['post_title']),
+        guid='',
+        post_mime_type='',
+        comment_status="closed",
+        ping_status="closed")
+    self.session.add(post)
+    # Flush the post to get populate the ID
+    self.session.flush()
+    # Update the guid with the post ID
+    post.guid = "http://skindeepmag.com/?p={}".format(post.ID)
+    return post

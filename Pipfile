@@ -9,6 +9,7 @@ click = "*"
 pymysql = "*"
 "ecade51" = {path = "/Users/sambriggs/Code/misc/wordpress-sqlalchemy", editable = true}
 docker = "*"
+python-slugify = "*"
 
 [dev-packages]
 ipython = "*"
