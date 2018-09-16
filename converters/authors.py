@@ -5,6 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.sql import collate
 
 from converters.converter import Converter
+from converters.helpers import kebabify
 
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ class AuthorsConverter(Converter):
             # Create a new term for this new author
             new_authors.append(wp.Term(
                 name=name,
-                slug=self.source.kebabify(name),
+                slug=kebabify(name),
                 term_group=0,
                 count=count,
                 taxonomy='sd-author'))

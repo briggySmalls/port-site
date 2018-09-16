@@ -53,6 +53,7 @@ class Page:
     def __init__(self, manager, title, template=None):
         # Create the page
         self._page = create_post(
+            manager,
             post_type="page",
             post_content='',
             post_excerpt='',
@@ -70,21 +71,21 @@ class Page:
 
 
 def kebabify(string):
-    return slugify(string).replace(' ', '-').lower()
+    return slugify(string)
 
 
-def create_post(self, **kwargs):
+def create_post(manager, **kwargs):
     # Create the post (with handy defaults set)
     post = wp.Post(
         **kwargs,
-        post_name=self.kebabify(kwargs['post_title']),
+        post_name=kebabify(kwargs['post_title']),
         guid='',
         post_mime_type='',
         comment_status="closed",
         ping_status="closed")
-    self.session.add(post)
+    manager.session.add(post)
     # Flush the post to get populate the ID
-    self.session.flush()
+    manager.session.flush()
     # Update the guid with the post ID
     post.guid = "http://skindeepmag.com/?p={}".format(post.ID)
     return post

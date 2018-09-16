@@ -5,7 +5,7 @@ from dataclasses import dataclass, asdict
 import wpalchemy.classes as wp
 
 from converters.converter import Converter
-from converters.helpers import create_post_meta, Page, kebabify
+from converters.helpers import create_post_meta, create_post, Page, kebabify
 
 
 @dataclass
@@ -54,7 +54,8 @@ class MenuItemMeta:
 class MenuItem:
     def __init__(self, manager, title: str, order: int, meta_args: MenuItemMetaArgs):
         # Create the menu Item
-        self._post = manager.create_post(
+        self._post = create_post(
+            manager,
             post_title=title,
             post_type="nav_menu_item",
             post_content='',
@@ -81,14 +82,9 @@ class MenuConverter(Converter):
         # Create footer menu
         self.footer_menu()
 
-
     def main_menu(self):
         # Remove all the nav menu term relationships
-        main_menu_term = self._find_or_create_term(
-            name="Main menu",
-            slug="main-menu",
-            taxonomy="")
-        main_menu_term = self._find_or_create_nav("Main Menu")
+        main_menu_term = self._find_or_create_nav(name="Main Menu")
         main_menu_term.posts = []
 
         # Create home page
