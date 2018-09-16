@@ -5,7 +5,7 @@ from dataclasses import dataclass, asdict
 import wpalchemy.classes as wp
 
 from converters.converter import Converter
-from converters.helpers import create_post_meta
+from converters.helpers import create_post_meta, Page, kebabify
 
 
 @dataclass
@@ -74,10 +74,32 @@ class MenuConverter(Converter):
         # Delete all nav menu posts (we are replacing them completely)
         self.source.session.query(wp.Post).filter_by(
             post_type='nav_menu_item').delete()
-        # Delete all the nav menu term relationships
-        main_menu_term = self.source.session.query(wp.Term).filter_by(
-            slug='main-menu').one()
+
+        # Create main menu
+        self.main_menu()
+
+        # Create footer menu
+        self.footer_menu()
+
+
+    def main_menu(self):
+        # Remove all the nav menu term relationships
+        main_menu_term = self._find_or_create_term(
+            name="Main menu",
+            slug="main-menu",
+            taxonomy="")
+        main_menu_term = self._find_or_create_nav("Main Menu")
         main_menu_term.posts = []
+
+        # Create home page
+        home_page = Page(
+            self.source,
+            title="Articles",
+            template="views/widget-page.blade.php")
+        # Update the home page setting (NOTE: In target settings)
+        self.target.session.query(wp.Option).filter_by(
+            option_name="page_on_front").update(
+                {wp.Option.option_value: home_page.object.ID})
 
         # Get about page
         about_page = self.source.session.query(wp.Post).filter_by(
@@ -96,7 +118,7 @@ class MenuConverter(Converter):
                 manager=self.source,
                 title="Articles",
                 order=2,
-                meta_args=CustomMenuItemMetaArgs(url="/articles")),
+                meta_args=PageMenuItemMetaArgs(object_id=home_page.object.ID)),
             MenuItem(
                 manager=self.source,
                 title="Events",
@@ -112,3 +134,37 @@ class MenuConverter(Converter):
         # Associate the posts with the main menu term
         for item in items:
             item.post.terms.append(main_menu_term)
+
+    def footer_menu(self):
+        # Create footer
+        footer_term = self._find_or_create_nav("Footer Menu")
+        # Add posts
+        posts = [
+            38,  # Donate
+
+        ]
+        for id in posts:
+            post = self.source.session.query(wp.Post).filter_by(ID=id).one()
+            post.terms.append(footer_term)
+
+
+    def _find_or_create_nav(self, name):
+        return self._find_or_create_term(
+            name=name,
+            slug=kebabify(name),
+            description='',
+            taxonomy="nav_menu")
+
+    def _find_or_create_term(self, name, slug, description, taxonomy):
+        # First try find it
+        term = self.source.session.query(wp.Term).filter_by(
+            slug=slug).first()
+        if term:
+            return term
+
+        # Term doesn't exist, so make it
+        return wp.Term(
+            name=name,
+            slug=slug,
+            description=description,
+            taxonomy=taxonomy)

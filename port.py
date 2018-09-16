@@ -28,7 +28,6 @@ def process(source, target):
     factory.create('EventsConverter').convert()
     factory.create('ProductsConverter').convert()
     factory.create('MenuConverter').convert()
-    factory.create('PagesConverter').convert()
     factory.create('CategoriesConverter').convert()
 
     cleanup(source)
