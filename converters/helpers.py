@@ -51,7 +51,7 @@ def create_meta(session: Session, class_type, id_column: str, id: int, data: dic
 
 
 class Page:
-    def __init__(self, manager, title, template=None, name=None):
+    def __init__(self, manager, title, template=None, name=None, content=''):
         # Supply optional post name
         kwargs = {}
         if name:
@@ -60,7 +60,7 @@ class Page:
         self._page = create_post(
             manager,
             post_type="page",
-            post_content='',
+            post_content=content,
             post_excerpt='',
             post_title=title,
             **kwargs)

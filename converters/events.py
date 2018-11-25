@@ -70,6 +70,7 @@ class EventsConverter(Converter):
                 # We need to set the date/time ourselves
                 create_post_meta(
                     self.source.session,
+                    event.ID,
                     {'sd_event_details_start_time': details['start_time']})
 
         # Remove the category term
