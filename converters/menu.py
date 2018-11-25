@@ -3,9 +3,10 @@
 from dataclasses import dataclass, asdict
 
 import wpalchemy.classes as wp
+from sqlalchemy import or_
 
 from converters.converter import Converter
-from converters.helpers import create_post_meta, create_post, Page, kebabify
+from converters.helpers import create_post_meta, create_post, Page, kebabify, find_or_create_term
 
 
 @dataclass
@@ -36,6 +37,11 @@ class CustomMenuItemMetaArgs(MenuItemMetaArgs):
 
     def update(self, post_id):
         self.object_id = post_id
+
+
+@dataclass
+class ArchiveMenuItemMetaArgs(MenuItemMetaArgs):
+    type: str = "post_type_archive"
 
 
 class MenuItemMeta:
@@ -72,6 +78,9 @@ class MenuItem:
 
 class MenuConverter(Converter):
     def convert(self):
+        # Delete all menus (we are replacing them completely)
+        self.source.session.query(wp.Term).filter_by(
+            taxonomy='nav_menu')
         # Delete all nav menu posts (we are replacing them completely)
         self.source.session.query(wp.Post).filter_by(
             post_type='nav_menu_item').delete()
@@ -88,79 +97,82 @@ class MenuConverter(Converter):
         main_menu_term.posts = []
 
         # Create home page
+        self.source.session.query(wp.Post).filter_by(post_title='Articles').delete()
         home_page = Page(
             self.source,
             title="Articles",
             template="views/widget-page.blade.php")
+
+        # Create articles archive
+        self.source.session.query(wp.Post).filter_by(post_title='Latest articles').delete()
+        latest_articles = Page(
+            self.source,
+            title="Latest articles",
+            name="latest")
+
         # Update the home page setting (NOTE: In target settings)
         self.target.session.query(wp.Option).filter_by(
-            option_name="page_on_front").update(
+            option_name='page_on_front').update(
                 {wp.Option.option_value: home_page.object.ID})
 
-        # Get about page
-        about_page = self.source.session.query(wp.Post).filter_by(
-            post_type='page',
-            post_name='about-us',
-            post_status='publish').one()
+        # Update the articles page setting (NOTE: In target settings)
+        self.target.session.query(wp.Option).filter_by(
+            option_name="page_for_posts").update(
+                {wp.Option.option_value: latest_articles.object.ID})
 
         # Create the new menu items
         items = [
             MenuItem(
                 manager=self.source,
-                title="About",
-                order=1,
-                meta_args=PageMenuItemMetaArgs(object_id=about_page.ID)),
-            MenuItem(
-                manager=self.source,
                 title="Articles",
-                order=2,
+                order=1,
                 meta_args=PageMenuItemMetaArgs(object_id=home_page.object.ID)),
             MenuItem(
                 manager=self.source,
                 title="Events",
-                order=3,
-                meta_args=CustomMenuItemMetaArgs(url="/events")),
+                order=2,
+                meta_args=ArchiveMenuItemMetaArgs(object="sd-event")),
             MenuItem(
                 manager=self.source,
                 title="Shop",
-                order=4,
-                meta_args=CustomMenuItemMetaArgs(url="/products")),
+                order=3,
+                meta_args=ArchiveMenuItemMetaArgs(object="sd-product")),
         ]
 
         # Associate the posts with the main menu term
-        for item in items:
-            item.post.terms.append(main_menu_term)
+        main_menu_term.posts.extend([item.post for item in items])
 
     def footer_menu(self):
-        # Create footer
+        # Create footer menu
         footer_term = self._find_or_create_nav("Footer Menu")
-        # Add posts
-        posts = [
-            38,  # Donate
 
+        # Search for posts to add to footer menu
+        post_names = [
+            'about-us',
+            'submissions',
+            'email-contacts',
+            'donate',
         ]
-        for id in posts:
-            post = self.source.session.query(wp.Post).filter_by(ID=id).one()
-            post.terms.append(footer_term)
+        posts = self.source.session.query(wp.Post).filter(
+            or_(*[wp.Post.post_name == name for name in post_names]))
+        assert posts.count() == len(post_names), (
+            "Not all posts found for footer menu")
 
+        # Create the new menu items
+        items = [
+            MenuItem(
+                manager=self.source,
+                title=post.post_title,
+                order=1,
+                meta_args=PageMenuItemMetaArgs(object_id=post.ID)) for post in posts]
+
+        # Add posts to menu
+        footer_term.posts.extend([item.post for item in items])
 
     def _find_or_create_nav(self, name):
-        return self._find_or_create_term(
+        return find_or_create_term(
+            manager=self.source,
             name=name,
             slug=kebabify(name),
             description='',
             taxonomy="nav_menu")
-
-    def _find_or_create_term(self, name, slug, description, taxonomy):
-        # First try find it
-        term = self.source.session.query(wp.Term).filter_by(
-            slug=slug).first()
-        if term:
-            return term
-
-        # Term doesn't exist, so make it
-        return wp.Term(
-            name=name,
-            slug=slug,
-            description=description,
-            taxonomy=taxonomy)

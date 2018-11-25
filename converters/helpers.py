@@ -1,5 +1,6 @@
 """Helper functions for manipulating wordpress classes"""
 from typing import Sequence, Callable, Any
+from subprocess import call
 
 from sqlalchemy.orm.session import Session
 import wpalchemy.classes as wp
@@ -50,20 +51,24 @@ def create_meta(session: Session, class_type, id_column: str, id: int, data: dic
 
 
 class Page:
-    def __init__(self, manager, title, template=None):
+    def __init__(self, manager, title, template=None, name=None):
+        # Supply optional post name
+        kwargs = {}
+        if name:
+            kwargs.update({'post_name': name})
         # Create the page
         self._page = create_post(
             manager,
             post_type="page",
             post_content='',
             post_excerpt='',
-            post_title=title)
-        # Set the template (if necessary)
-        if template:
-            manager.session.add(wp.PostMeta(
-                post_id=self._page.ID,
-                meta_key="_wp_page_template",
-                meta_value=template))
+            post_title=title,
+            **kwargs)
+        # Set the template
+        manager.session.add(wp.PostMeta(
+            post_id=self._page.ID,
+            meta_key="_wp_page_template",
+            meta_value=template if template else ''))
 
     @property
     def object(self):
@@ -75,10 +80,12 @@ def kebabify(string):
 
 
 def create_post(manager, **kwargs):
+    # Create a default post name if not specified
+    if 'post_name' not in kwargs:
+        kwargs.update({'post_name': kebabify(kwargs['post_title'])})
     # Create the post (with handy defaults set)
     post = wp.Post(
         **kwargs,
-        post_name=kebabify(kwargs['post_title']),
         guid='',
         post_mime_type='',
         comment_status="closed",
@@ -108,3 +115,19 @@ def create_acf_meta(manager, class_ref, object_id, value, acf_name, acf_key):
         meta_key="_{}".format(acf_name),
         meta_value=acf_key,
         **kwargs))
+
+def find_or_create_term(manager, name, slug, taxonomy, description=''):
+        # First try find it
+        term = manager.session.query(wp.Term).filter_by(
+            slug=slug).first()
+        if term:
+            return term
+
+        # Term doesn't exist, so make it
+        term = wp.Term(
+            name=name,
+            slug=slug,
+            description=description,
+            taxonomy=taxonomy)
+        manager.session.add(term)
+        return term

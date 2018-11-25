@@ -25,13 +25,22 @@ class ProductsConverter(Converter):
             taxonomy='it_exchange_category').update(
                 {wp.Term.taxonomy: 'sd-product-cat'})
 
+        # Rename product categories
+        self.source.session.query(wp.Term).filter_by(
+            slug="print-magazines").update(
+                {
+                    wp.Term.slug: "magazines",
+                    wp.Term.name: "Magazines",
+                })
+        # TODO: Delete digital-magazines
+
         # Copy details from ithemes exchange
         for product in self.source.session.query(wp.Post).filter_by(post_type="sd-product"):
             # Copy description
             description = get_meta(product, "_it-exchange-product-description")
             product.post_content = description
 
-            # Copy other meta-data
+            # Extract meta-data
             price = int(get_meta(
                 product, "_it-exchange-base-price")) / 100
             is_subscription = get_meta(
@@ -43,10 +52,16 @@ class ProductsConverter(Converter):
             image = re.match(
                 r'a:1:{i:0;s:(\d+):"(?P<id>\d+)";}',
                 get_meta(product, "_it-exchange-product-images"))
+            out_of_stock = (
+                get_meta(product, "_it-exchange-product-enable-inventory") == "yes" and
+                int(get_meta(product, "_it-exchange-product-inventory")) == 0)
+
+            # Save new meta-data
             data = {
                 "sd-product-price": price,
                 "sd-product-subscription": 0 if is_subscription else 1,
                 "sd-product-frequency": frequency,
+                "sd_product_in_stock": 0 if out_of_stock else 1,
                 "_thumbnail_id": image.group('id') if image else '',
             }
             create_post_meta(self.source.session, product.ID, data)
