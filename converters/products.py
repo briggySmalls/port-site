@@ -7,6 +7,18 @@ from converters.converter import Converter
 from converters.helpers import get_meta, create_post_meta
 
 
+_MAGAZINE_BACKGROUNDS = {
+    2810: "#1e73be",  # Movements
+    2341: "#2878bf",  # Food
+    1868: "#55c0d6",  # Spectacle
+    1809: "#ffbb00",  # Imagining 2043
+    1814: "#d1b966",  # Theorising from the outside
+    1820: "#12d181",  # Terrorising the masses
+    1819: "#d6efff",  # Roots/Routes
+    1823: "#ef6f00",  # Introductions
+}
+
+
 class ProductsConverter(Converter):
     def convert(self):
         # Update post type of products
@@ -64,4 +76,8 @@ class ProductsConverter(Converter):
                 "sd_product_in_stock": 0 if out_of_stock else 1,
                 "_thumbnail_id": image.group('id') if image else '',
             }
+            # Update magazines with a background colour in archive
+            if product.ID in _MAGAZINE_BACKGROUNDS:
+                data['sd_product_magazine_image_background_colour'] = _MAGAZINE_BACKGROUNDS[product.ID]
+
             create_post_meta(self.source.session, product.ID, data)
