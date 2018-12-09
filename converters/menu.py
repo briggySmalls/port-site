@@ -135,7 +135,7 @@ class MenuConverter(Converter):
         # Create new pages for the menu
         home_page, latest_articles, events_page = self.create_menu_pages()
 
-        # Create menu items that will have children
+        # Create top-level article menu item
         menu_index = Counter(1)
         items = []
         articles_menu_item = MenuItem(
@@ -178,7 +178,6 @@ class MenuConverter(Converter):
         events_menu_item = MenuItem(
             manager=self.source,
             title="Events",
-            slug=""
             order=menu_index.next(),
             meta_args=PageMenuItemMetaArgs(object_id=events_page.object.ID))
         items.append(events_menu_item)
